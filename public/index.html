@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Stock Market Tracker</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>Stock Market Tracker</h1>
+    <p>Track stocks, analyze price levels, and follow market news.</p>
+  </header>
+
+  <main>
+
+    <section class="search-section">
+      <h2>Search Stocks</h2>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="stockInput"
+          placeholder="Enter ticker symbol (GME, AAPL, NVDA)"
+        >
+
+        <button id="searchButton">
+          Search
+        </button>
+      </div>
+    </section>
+
+
+    <section class="stock-info">
+
+      <h2>Stock Information</h2>
+
+      <div class="stock-card">
+
+        <h3 id="stockSymbol">---</h3>
+
+        <p>
+          Price:
+          <span id="stockPrice">---</span>
+        </p>
+
+        <p>
+          Change:
+          <span id="stockChange">---</span>
+        </p>
+
+        <p>
+          Volume:
+          <span id="stockVolume">---</span>
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <section class="chart-section">
+
+      <h2>Price Chart</h2>
+
+      <div class="chart-placeholder">
+        Stock chart will appear here
+      </div>
+
+    </section>
+
+
+    <section class="levels-section">
+
+      <h2>Support & Resistance</h2>
+
+      <div class="levels">
+
+        <div>
+          <h3>Support</h3>
+          <p id="supportLevel">---</p>
+        </div>
+
+        <div>
+          <h3>Resistance</h3>
+          <p id="resistanceLevel">---</p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <section class="news-section">
+
+      <h2>Market News</h2>
+
+      <div id="newsContainer">
+        <p>Stock news will appear here.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <footer>
+    <p>Stock Market Tracker | Senior Project</p>
+  </footer>
+
+
+  <script src="script.js"></script>
+
+</body>
+</html>
