@@ -49,14 +49,53 @@ section h2 {
   gap: 10px;
 }
 
+#stockSearchForm label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.search-hint {
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.search-status,
+.search-error {
+  margin-top: 12px;
+}
+
+.search-status:empty {
+  margin-top: 0;
+}
+
+.search-status {
+  color: #cbd5e1;
+}
+
+.search-error {
+  color: #fca5a5;
+}
+
 #stockInput {
   flex: 1;
+  min-width: 0;
   padding: 14px;
   border: 1px solid #475569;
   border-radius: 8px;
   background: #0f172a;
   color: white;
   font-size: 16px;
+}
+
+#stockInput[aria-invalid="true"] {
+  border-color: #fca5a5;
+}
+
+#stockInput:focus-visible,
+#searchButton:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
 }
 
 #searchButton {
@@ -73,6 +112,11 @@ section h2 {
   background: #1d4ed8;
 }
 
+#searchButton:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .stock-card {
   background: #0f172a;
   padding: 20px;
@@ -87,6 +131,25 @@ section h2 {
 .stock-card p {
   margin: 10px 0;
   color: #cbd5e1;
+}
+
+.stock-card .quote-meta {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.quote-delay {
+  display: block;
+  margin-top: 6px;
+}
+
+#stockChange.positive {
+  color: #4ade80;
+}
+
+#stockChange.negative {
+  color: #fca5a5;
 }
 
 .chart-placeholder {
