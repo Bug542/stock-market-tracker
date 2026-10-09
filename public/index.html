@@ -21,17 +21,28 @@
     <section class="search-section">
       <h2>Search Stocks</h2>
 
-      <div class="search-box">
-        <input
-          type="text"
-          id="stockInput"
-          placeholder="Enter ticker symbol (GME, AAPL, NVDA)"
-        >
+      <form id="stockSearchForm" novalidate>
+        <label for="stockInput">Ticker symbol</label>
+        <p id="stockInputHint" class="search-hint">Try GME, AAPL, or NVDA.</p>
+        <div class="search-box">
+          <input
+            type="text"
+            id="stockInput"
+            name="symbol"
+            placeholder="Enter ticker symbol"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            aria-describedby="stockInputHint searchError"
+          >
 
-        <button id="searchButton">
-          Search
-        </button>
-      </div>
+          <button id="searchButton" type="submit">
+            Search
+          </button>
+        </div>
+        <p id="searchStatus" class="search-status" role="status" aria-live="polite"></p>
+        <p id="searchError" class="search-error" role="alert" hidden></p>
+      </form>
     </section>
 
 
@@ -39,9 +50,10 @@
 
       <h2>Stock Information</h2>
 
-      <div class="stock-card">
+      <div id="stockCard" class="stock-card">
 
         <h3 id="stockSymbol">---</h3>
+        <p id="stockName">Search for a ticker to view its latest quote.</p>
 
         <p>
           Price:
@@ -49,13 +61,21 @@
         </p>
 
         <p>
-          Change:
+          Change vs. previous close:
           <span id="stockChange">---</span>
         </p>
 
         <p>
           Volume:
           <span id="stockVolume">---</span>
+        </p>
+
+        <p id="stockExchange" class="quote-meta" hidden></p>
+        <p id="stockMetadata" class="quote-meta" hidden>
+          <span id="stockSource"></span>
+          <span aria-hidden="true"> · </span>
+          <time id="stockAsOf"></time>
+          <span class="quote-delay">Quotes may be delayed.</span>
         </p>
 
       </div>
