@@ -87,9 +87,13 @@
 
       <h2>Price Chart</h2>
 
-      <div class="chart-placeholder">
-        Stock chart will appear here
+      <div class="chart-controls" aria-label="Chart time range">
+        <button type="button" class="range-button active" data-range="1mo" aria-pressed="true">1 month</button>
+        <button type="button" class="range-button" data-range="3mo" aria-pressed="false">3 months</button>
       </div>
+      <p id="chartStatus" role="status">Search for a stock to display historical prices.</p>
+      <div id="priceChart" class="price-chart" role="img" aria-label="No stock chart loaded yet"></div>
+      <p class="chart-footnote">Daily closing prices; market data may be delayed.</p>
 
     </section>
 
