@@ -19,6 +19,83 @@ const tickerPattern = /^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/;
 
 let requestId = 0;
 let activeController = null;
+let chartController = null;
+let chartRequestId = 0;
+let chartSymbol = "";
+let chartRange = "1mo";
+
+const priceChart = document.getElementById("priceChart");
+const chartStatus = document.getElementById("chartStatus");
+const rangeButtons = document.querySelectorAll(".range-button");
+
+function renderChart(prices, symbol, currency) {
+  const width = 800, height = 320, padX = 62, padY = 32;
+  const values = prices.map(p => p.close);
+  const low = Math.min(...values), high = Math.max(...values);
+  const span = Math.max(high - low, high * 0.01, 0.01);
+  const min = Math.max(0, low - span * 0.12), max = high + span * 0.12;
+  const x = i => padX + (i / (prices.length - 1)) * (width - 2 * padX);
+  const y = value => padY + (1 - (value - min) / (max - min)) * (height - 2 * padY);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 800 320");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", symbol + " daily closing price chart from " + prices[0].date + " to " + prices.at(-1).date);
+  function element(tag, attributes, label) {
+    const node = document.createElementNS(ns, tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    if (label !== undefined) node.textContent = label;
+    svg.appendChild(node);
+    return node;
+  }
+  for (let i = 0; i <= 4; i++) {
+    const value = min + (max - min) * (i / 4);
+    const yy = y(value);
+    element("line", { x1: padX, x2: width-padX, y1: yy, y2: yy, stroke: "#334155", "stroke-width": 1 });
+    element("text", { x: padX-8, y: yy+4, "text-anchor": "end", fill: "#cbd5e1", "font-size": 12 }, value.toFixed(2));
+  }
+  element("polyline", {
+    points: prices.map((p,i) => x(i).toFixed(1)+","+y(p.close).toFixed(1)).join(" "),
+    fill: "none", stroke: "#38bdf8", "stroke-width": 3, "stroke-linejoin": "round",
+    "stroke-linecap": "round"
+  });
+  [0, Math.floor((prices.length-1)/2), prices.length-1].forEach(i => {
+    element("text", { x: x(i), y: height-7, "text-anchor": "middle", fill: "#cbd5e1", "font-size": 13 }, prices[i].date);
+  });
+  priceChart.replaceChildren(svg);
+  chartStatus.textContent = symbol + ": " + prices.length + " daily closing prices (" + currency + ").";
+}
+
+async function loadChart(symbol) {
+  if (chartController) chartController.abort();
+  const currentId = ++chartRequestId;
+  chartSymbol = symbol;
+  chartController = new AbortController();
+  priceChart.replaceChildren();
+  chartStatus.textContent = "Loading " + chartRange + " price history for " + symbol + "...";
+  try {
+    const response = await fetch("/api/history?symbol=" + encodeURIComponent(symbol) + "&range=" + chartRange, {
+      signal: chartController.signal, headers: { Accept: "application/json" }
+    });
+    const result = await response.json();
+    if (currentId !== chartRequestId) return;
+    if (!response.ok) throw new Error(result.error || "Unable to load chart data.");
+    renderChart(result.prices, result.symbol, result.currency);
+  } catch (error) {
+    if (currentId !== chartRequestId || error.name === "AbortError") return;
+    chartStatus.textContent = error.message || "Unable to load historical chart data.";
+  }
+}
+
+rangeButtons.forEach(button => button.addEventListener("click", () => {
+  chartRange = button.dataset.range;
+  rangeButtons.forEach(item => {
+    const active = item === button;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-pressed", String(active));
+  });
+  if (chartSymbol) loadChart(chartSymbol);
+}));
 
 function clearError() {
   searchError.textContent = "";
@@ -132,6 +209,11 @@ searchForm.addEventListener("submit", async (event) => {
   }
 
   clearQuote();
+  if (chartController) chartController.abort();
+  ++chartRequestId;
+  chartSymbol = "";
+  priceChart.replaceChildren();
+  chartStatus.textContent = "Waiting for a successful stock lookup.";
   const controller = new AbortController();
   activeController = controller;
   setLoading(true);
@@ -158,6 +240,7 @@ searchForm.addEventListener("submit", async (event) => {
       return;
     }
     displayQuote(quote);
+    loadChart(quote.symbol);
     searchStatus.textContent = `Quote loaded for ${quote.symbol}.`;
   } catch (error) {
     if (currentRequestId !== requestId) return;

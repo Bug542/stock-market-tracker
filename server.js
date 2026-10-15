@@ -1,9 +1,9 @@
 const express = require("express");
 const path = require("path");
 const { setGlobalProxyFromEnv } = require("node:http");
-const { fetchQuote, QuoteError } = require("./quote");
+const { fetchQuote, fetchHistory, QuoteError } = require("./quote");
 
-function createApp({ getQuote = fetchQuote } = {}) {
+function createApp({ getQuote = fetchQuote, getHistory = fetchHistory } = {}) {
   const app = express();
 
   app.get("/api/quote", async (req, res) => {
@@ -18,6 +18,27 @@ function createApp({ getQuote = fetchQuote } = {}) {
     } catch (error) {
       const status = error instanceof QuoteError ? error.status : 502;
       const message = error instanceof QuoteError ? error.message : "Unable to load a quote. Please try again later.";
+      res.status(status).json({ error: message });
+    }
+  });
+
+
+  app.get("/api/history", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const symbol = typeof req.query.symbol === "string" ? req.query.symbol.trim().toUpperCase() : "";
+    const range = typeof req.query.range === "string" ? req.query.range : "1mo";
+    if (!/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(symbol)) {
+      return res.status(400).json({ error: "Enter a valid ticker symbol." });
+    }
+    if (!["1mo", "3mo"].includes(range)) {
+      return res.status(400).json({ error: "Choose a valid chart range." });
+    }
+
+    try {
+      res.json(await getHistory(symbol, { range }));
+    } catch (error) {
+      const status = error instanceof QuoteError ? error.status : 502;
+      const message = error instanceof QuoteError ? error.message : "Unable to load historical prices.";
       res.status(status).json({ error: message });
     }
   });

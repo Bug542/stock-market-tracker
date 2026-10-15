@@ -61,4 +61,63 @@ async function fetchQuote(symbol, { fetchImpl = globalThis.fetch, timeoutMs = 80
   }
 }
 
-module.exports = { fetchQuote, QuoteError };
+
+/**
+ * Fetch daily historical closing prices for the prototype chart.
+ * Missing observations and non-trading days are omitted.
+ */
+async function fetchHistory(symbol, { fetchImpl = globalThis.fetch, timeoutMs = 8000, range = "1mo" } = {}) {
+  if (!["1mo", "3mo"].includes(range)) {
+    throw new QuoteError(400, "Choose a valid chart range.");
+  }
+  const signal = AbortSignal.timeout(timeoutMs);
+  const url = new URL("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol));
+  url.searchParams.set("interval", "1d");
+  url.searchParams.set("range", range);
+
+  try {
+    const response = await fetchImpl(url, { headers: { Accept: "application/json" }, signal });
+    if (response.status === 404) {
+      throw new QuoteError(404, "No history found for " + symbol + ".");
+    }
+    if (!response.ok) {
+      throw new QuoteError(502, "Historical data is temporarily unavailable.");
+    }
+    const data = await response.json();
+    if (data?.chart?.error) {
+      throw new QuoteError(502, "Historical data could not be loaded.");
+    }
+    const result = data?.chart?.result?.[0];
+    const timestamps = result?.timestamp;
+    const closes = result?.indicators?.quote?.[0]?.close;
+    if (!Array.isArray(timestamps) || !Array.isArray(closes)) {
+      throw new QuoteError(502, "No historical closing prices were returned.");
+    }
+    const byDate = new Map();
+    for (let i = 0; i < Math.min(timestamps.length, closes.length); i++) {
+      if (!finiteNumber(timestamps[i]) || !finiteNumber(closes[i]) || closes[i] < 0) continue;
+      const date = new Date(timestamps[i] * 1000);
+      if (!Number.isFinite(date.getTime())) continue;
+      byDate.set(date.toISOString().slice(0, 10), closes[i]);
+    }
+    const prices = [...byDate].sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, close]) => ({ date, close }));
+    if (prices.length < 2) {
+      throw new QuoteError(502, "Not enough historical prices are available to draw a chart.");
+    }
+    return {
+      symbol: symbol.toUpperCase(),
+      range,
+      currency: nonemptyText(result?.meta?.currency) || "USD",
+      prices,
+    };
+  } catch (error) {
+    if (error instanceof QuoteError) throw error;
+    if (signal.aborted || error.name === "TimeoutError" || error.name === "AbortError") {
+      throw new QuoteError(504, "Historical data request timed out. Please try again.");
+    }
+    throw new QuoteError(502, "Unable to reach the historical data provider.");
+  }
+}
+
+module.exports = { fetchQuote, fetchHistory, QuoteError };
