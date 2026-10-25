@@ -37,3 +37,29 @@ test("history endpoint rejects bad input and returns injected history", async ()
     assert.equal(data.range,"3mo");
   } finally {await new Promise(resolve=>server.close(resolve));}
 });
+
+test("historical data includes valid OHLC while retaining closing prices", async () => {
+  const payload = {chart:{result:[{
+    meta:{currency:"USD"},
+    timestamp:[1727913600,1728000000],
+    indicators:{quote:[{open:[10,12],high:[13,15],low:[9,11],close:[12,13]}]}
+  }]}};
+  const fetchImpl = async () => ({ok:true,status:200,json:async()=>payload});
+  const history = await fetchHistory("GME", {fetchImpl,range:"3mo"});
+  assert.deepEqual(history.prices.map(({open,high,low,close}) => ({open,high,low,close})), [
+    {open:10,high:13,low:9,close:12},
+    {open:12,high:15,low:11,close:13}
+  ]);
+});
+
+test("bad or missing OHLC is left out but valid closing prices remain", async () => {
+  const payload = {chart:{result:[{
+    meta:{currency:"USD"}, timestamp:[1727913600,1728000000],
+    indicators:{quote:[{open:[10,null],high:[9,null],low:[8,null],close:[12,13]}]}
+  }]}};
+  const fetchImpl = async () => ({ok:true,status:200,json:async()=>payload});
+  const history = await fetchHistory("AAPL", {fetchImpl});
+  assert.deepEqual(history.prices.map(({date,close})=>close), [12,13]);
+  assert.equal(Object.hasOwn(history.prices[0], "open"), false);
+  assert.equal(Object.hasOwn(history.prices[1], "open"), false);
+});

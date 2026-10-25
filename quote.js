@@ -89,7 +89,11 @@ async function fetchHistory(symbol, { fetchImpl = globalThis.fetch, timeoutMs = 
     }
     const result = data?.chart?.result?.[0];
     const timestamps = result?.timestamp;
-    const closes = result?.indicators?.quote?.[0]?.close;
+    const daily = result?.indicators?.quote?.[0];
+    const closes = daily?.close;
+    const opens = daily?.open;
+    const highs = daily?.high;
+    const lows = daily?.low;
     if (!Array.isArray(timestamps) || !Array.isArray(closes)) {
       throw new QuoteError(502, "No historical closing prices were returned.");
     }
@@ -98,10 +102,17 @@ async function fetchHistory(symbol, { fetchImpl = globalThis.fetch, timeoutMs = 
       if (!finiteNumber(timestamps[i]) || !finiteNumber(closes[i]) || closes[i] < 0) continue;
       const date = new Date(timestamps[i] * 1000);
       if (!Number.isFinite(date.getTime())) continue;
-      byDate.set(date.toISOString().slice(0, 10), closes[i]);
+      const point = { close: closes[i] };
+      // A candle is meaningful only when the four prices are finite and consistent.
+      const open = opens?.[i], high = highs?.[i], low = lows?.[i];
+      if ([open, high, low].every(finiteNumber) && open >= 0 && low >= 0 &&
+          high >= Math.max(open, point.close) && low <= Math.min(open, point.close)) {
+        Object.assign(point, { open, high, low });
+      }
+      byDate.set(date.toISOString().slice(0, 10), point);
     }
     const prices = [...byDate].sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, close]) => ({ date, close }));
+      .map(([date, point]) => ({ date, ...point }));
     if (prices.length < 2) {
       throw new QuoteError(502, "Not enough historical prices are available to draw a chart.");
     }
