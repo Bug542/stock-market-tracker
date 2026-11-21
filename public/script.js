@@ -25,14 +25,16 @@ let chartSymbol = "";
 let chartRange = "1mo";
 let chartType = "line";
 let chartData = null;
+let showSma = false;
 
 const priceChart = document.getElementById("priceChart");
 const chartStatus = document.getElementById("chartStatus");
 const rangeButtons = document.querySelectorAll(".range-button");
 const typeButtons = document.querySelectorAll(".chart-type-button");
 const chartFootnote = document.getElementById("chartFootnote");
+const smaToggle = document.getElementById("smaToggle");
 
-function renderChart(prices, symbol, currency) {
+function renderChart(prices, symbol, currency, movingAverage = []) {
   const candles = chartType === "candles";
   const points = candles ? prices.filter(p => [p.open, p.high, p.low, p.close].every(Number.isFinite) &&
     p.low >= 0 && p.high >= Math.max(p.open, p.close) && p.low <= Math.min(p.open, p.close)) : prices;
@@ -44,7 +46,15 @@ function renderChart(prices, symbol, currency) {
     return;
   }
   const width = 800, height = 320, padX = 62, padY = 32;
-  const values = candles ? points.flatMap(p => [p.low, p.high]) : points.map(p => p.close);
+  const averagesByDate = new Map(
+    movingAverage.filter(point => point && typeof point.date === "string" &&
+      Number.isFinite(point.average) && point.average >= 0)
+      .map(point => [point.date, point.average])
+  );
+  const smaValues = points.map(point => averagesByDate.get(point.date) ?? null);
+  const visibleAverages = showSma ? smaValues.filter(Number.isFinite) : [];
+  const values = (candles ? points.flatMap(p => [p.low, p.high]) : points.map(p => p.close))
+    .concat(visibleAverages);
   const low = Math.min(...values), high = Math.max(...values);
   const span = Math.max(high - low, high * 0.01, 0.01);
   const min = Math.max(0, low - span * 0.12), max = high + span * 0.12;
@@ -91,15 +101,43 @@ function renderChart(prices, symbol, currency) {
       "stroke-linecap": "round"
     });
   }
+  if (showSma && visibleAverages.length) {
+    // Keep gaps from missing averages disconnected, rather than drawing through them.
+    let segment = [];
+    function drawSegment() {
+      if (segment.length >= 2) {
+        element("polyline", {
+          points: segment.map(({ index, value }) => x(index).toFixed(1) + "," + y(value).toFixed(1)).join(" "),
+          fill: "none", stroke: "#fbbf24", "stroke-width": 3,
+          "stroke-linecap": "round", "stroke-linejoin": "round"
+        });
+      } else if (segment.length === 1) {
+        element("circle", {
+          cx: x(segment[0].index), cy: y(segment[0].value), r: 3, fill: "#fbbf24"
+        });
+      }
+      segment = [];
+    }
+    smaValues.forEach((value, index) => {
+      if (Number.isFinite(value)) segment.push({ index, value });
+      else drawSegment();
+    });
+    drawSegment();
+  }
   [...new Set([0, Math.floor((points.length-1)/2), points.length-1])].forEach(i => {
     element("text", { x: x(i), y: height-7, "text-anchor": "middle", fill: "#cbd5e1", "font-size": 13 }, points[i].date);
   });
   priceChart.replaceChildren(svg);
   chartStatus.textContent = symbol + ": " + points.length +
     (candles ? " daily candlesticks (" : " daily closing prices (") + currency + ").";
-  chartFootnote.textContent = candles
+  const baseFootnote = candles
     ? "Green = close at or above open; red = close below open. Hover over a candle for OHLC data. Prices may be delayed."
     : "Daily closing prices; market data may be delayed.";
+  chartFootnote.textContent = showSma
+    ? baseFootnote + (visibleAverages.length
+      ? " Gold line = five-trading-session simple moving average (SMA)."
+      : " Five trading sessions of history are needed before an SMA can be displayed.")
+    : baseFootnote;
 }
 
 async function loadChart(symbol) {
@@ -118,7 +156,7 @@ async function loadChart(symbol) {
     if (currentId !== chartRequestId) return;
     if (!response.ok) throw new Error(result.error || "Unable to load chart data.");
     chartData = result;
-    renderChart(result.prices, result.symbol, result.currency);
+    renderChart(result.prices, result.symbol, result.currency, result.movingAverage);
   } catch (error) {
     if (currentId !== chartRequestId || error.name === "AbortError") return;
     chartStatus.textContent = error.message || "Unable to load historical chart data.";
@@ -132,8 +170,16 @@ typeButtons.forEach(button => button.addEventListener("click", () => {
     item.classList.toggle("active", active);
     item.setAttribute("aria-pressed", String(active));
   });
-  if (chartData) renderChart(chartData.prices, chartData.symbol, chartData.currency);
+  if (chartData) renderChart(chartData.prices, chartData.symbol, chartData.currency, chartData.movingAverage);
 }));
+
+smaToggle.addEventListener("click", () => {
+  showSma = !showSma;
+  smaToggle.classList.toggle("active", showSma);
+  smaToggle.setAttribute("aria-pressed", String(showSma));
+  smaToggle.textContent = showSma ? "Hide 5-day average" : "Show 5-day average";
+  if (chartData) renderChart(chartData.prices, chartData.symbol, chartData.currency, chartData.movingAverage);
+});
 
 rangeButtons.forEach(button => button.addEventListener("click", () => {
   chartRange = button.dataset.range;
