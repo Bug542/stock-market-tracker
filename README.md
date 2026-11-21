@@ -17,7 +17,15 @@ Open the app in a browser, enter a ticker such as AAPL, GME, NVDA, or BRK-B,
 and click Search or press Enter. The quote shows price, change from the previous
 close, volume, exchange, and the provider's quote timestamp. Missing values are
 shown as unavailable. Quotes may be delayed; check the displayed timestamp.
-Charts, support/resistance, and news remain placeholders.
+Historical charts support one- and three-month ranges, line and candlestick views,
+and an optional five-session simple moving average (SMA) in gold. The average
+is calculated on the server from daily closing prices and returned alongside
+`GET /api/history?symbol=AAPL&range=1mo` in a `movingAverage` array.
+The first four observations have a null average because five trading sessions
+are required. Toggle the overlay with **Show 5-day average**; the same control
+works for line and candlestick views.
+
+Support/resistance and news are planned but not implemented yet.
 
 ## Quote source
 
@@ -56,3 +64,14 @@ npm test
 Tests use Node's built-in test runner and controlled provider responses. They
 cover quote mapping, input validation, HTTP errors, timeouts, and static serving
 without requiring Internet access or a market-data account.
+
+## Week 10 progress
+
+- Added a server-computed five-session SMA to the stock history API.
+- Added a Show/Hide 5-day average control for both chart views.
+- Rendered an accessible gold SMA overlay, including gaps when values are unavailable.
+- Added tests for date alignment, the expected values, and short histories.
+
+Start the app with `npm start`, search for AAPL or GME, and select
+**Show 5-day average** to view the new chart indicator. Run `npm test`
+to verify the project on your machine.
