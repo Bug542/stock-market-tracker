@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const { setGlobalProxyFromEnv } = require("node:http");
 const { fetchQuote, fetchHistory, QuoteError } = require("./quote");
+const { calculateSimpleMovingAverage } = require("./moving-average");
 
 function createApp({ getQuote = fetchQuote, getHistory = fetchHistory } = {}) {
   const app = express();
@@ -35,7 +36,8 @@ function createApp({ getQuote = fetchQuote, getHistory = fetchHistory } = {}) {
     }
 
     try {
-      res.json(await getHistory(symbol, { range }));
+      const history = await getHistory(symbol, { range });
+      res.json({ ...history, movingAverage: calculateSimpleMovingAverage(history.prices, 5) });
     } catch (error) {
       const status = error instanceof QuoteError ? error.status : 502;
       const message = error instanceof QuoteError ? error.message : "Unable to load historical prices.";
