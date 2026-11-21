@@ -63,3 +63,49 @@ test("bad or missing OHLC is left out but valid closing prices remain", async ()
   assert.equal(Object.hasOwn(history.prices[0], "open"), false);
   assert.equal(Object.hasOwn(history.prices[1], "open"), false);
 });
+
+
+test("history API includes a date-aligned five-day moving average", async () => {
+  const prices = [10, 12, 14, 16, 18, 20].map((close, index) => ({
+    date: `2026-11-${String(index + 2).padStart(2, "0")}`,
+    close
+  }));
+  const snapshot = structuredClone(prices);
+  const app = createApp({
+    getHistory: async (symbol, { range }) => ({ symbol, range, currency: "USD", prices })
+  });
+  const server = app.listen(0);
+  try {
+    const base = "http://127.0.0.1:" + server.address().port;
+    const response = await fetch(base + "/api/history?symbol=AAPL&range=1mo");
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("cache-control"), /no-store/);
+    const data = await response.json();
+    assert.equal(data.symbol, "AAPL");
+    assert.equal(data.range, "1mo");
+    assert.deepEqual(data.movingAverage.map(point => point.date), prices.map(point => point.date));
+    assert.deepEqual(data.movingAverage.map(point => point.average), [null, null, null, null, 14, 16]);
+    assert.deepEqual(data.prices, snapshot);
+    assert.deepEqual(prices, snapshot);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("history API reports no SMA with fewer than five trading prices", async () => {
+  const app = createApp({
+    getHistory: async () => ({
+      symbol: "GME", range: "1mo",
+      prices: [{ date: "2026-11-10", close: 5 }, { date: "2026-11-11", close: 6 }]
+    })
+  });
+  const server = app.listen(0);
+  try {
+    const base = "http://127.0.0.1:" + server.address().port;
+    const response = await fetch(base + "/api/history?symbol=GME");
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).movingAverage.map(point => point.average), [null, null]);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
