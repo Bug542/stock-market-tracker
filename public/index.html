@@ -95,6 +95,10 @@
         <button type="button" class="chart-type-button active" data-chart-type="line" aria-pressed="true">Line</button>
         <button type="button" class="chart-type-button" data-chart-type="candles" aria-pressed="false">Candlesticks</button>
       </div>
+      <div class="chart-controls" aria-label="Chart indicators">
+        <button type="button" id="smaToggle" class="indicator-button" aria-pressed="false">Show 5-day average</button>
+        <span class="chart-legend"><span class="legend-swatch"></span>5-day SMA</span>
+      </div>
       <p id="chartStatus" role="status">Search for a stock to display historical prices.</p>
       <div id="priceChart" class="price-chart" role="img" aria-label="No stock chart loaded yet"></div>
       <p id="chartFootnote" class="chart-footnote">Daily closing prices; market data may be delayed.</p>
